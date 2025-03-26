@@ -24,7 +24,21 @@ if [[ ! "$1" =~ ^(fmt|init|plan|validate)$ ]]; then
   exit 1
 fi
 
+if [ "$2" ]; then
+  input_raw="$2"
+fi
+
 comment="$4"
+file="$5"
+
+if [ "$file" ]; then
+  input_raw="$(</github/workspace/$file)"
+fi
+
+if [ -z "$input_raw" ]; then
+  echo "No input specified" >&2
+  exit 1
+fi
 
 ##################
 # Shared Variables
@@ -32,7 +46,7 @@ comment="$4"
 # Arg 1 is command
 COMMAND=$1
 # Arg 2 is input. We strip ANSI colours.
-INPUT=$(echo "$2" | sed 's/\x1b\[[0-9;]*m//g')
+INPUT=$(echo "$input_raw" | sed 's/\x1b\[[0-9;]*m//g')
 # Arg 3 is the Terraform CLI exit code
 EXIT_CODE=$3
 

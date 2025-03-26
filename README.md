@@ -27,19 +27,20 @@ This action can only be run after a Terraform `fmt`, `init`, `plan` or `validate
     TF_WORKSPACE: stage
   with:
     commenter_type: fmt/init/plan/validate # Choose one
-    commenter_input: ${{ format('{0}{1}', steps.step_id.outputs.stdout, steps.step_id.outputs.stderr) }}
+    commenter_input_file: terraform-plan.out # Write plan to {{ github.workspace }}/terraform-plan.out
     commenter_exitcode: ${{ steps.step_id.outputs.exitcode }}
     commenter_comment: "Cluster" # optional, e.g. to differentiate "Cluster" vs. "Kubernetes"
 ```
 
 ### Inputs
 
-| Name                 | Requirement | Description                                                       |
-| -------------------- | ----------- | ----------------------------------------------------------------- |
-| `commenter_type`     | _required_  | The type of comment. Options: [`fmt`, `init`, `plan`, `validate`] |
-| `commenter_input`    | _required_  | The comment to post from a previous step output.                  |
-| `commenter_exitcode` | _required_  | The exit code from a previous step output.                        |
-| `commenter_comment`  | _optional_  | An optional comment to add to the end of the headline.            |
+| Name                  | Requirement | Description                                                       |
+| --------------------- | ----------- | ----------------------------------------------------------------- |
+| `commenter_type`        | _required_  | The type of comment. Options: [`fmt`, `init`, `plan`, `validate`] |
+| `commenter_input`       | _optional_  | the comment to post from a previous step output.                  |
+| `commenter_input_file`  | _optional_  | the comment to post in form of a file name relative to {{ github.workspace }} |
+| `commenter_exitcode`    | _required_  | The exit code from a previous step output.                        |
+| `commenter_comment`     | _optional_  | An optional comment to add to the end of the headline.            |
 
 ### Environment Variables
 
@@ -210,6 +211,47 @@ jobs:
           commenter_input: ${{ format('{0}{1}', steps.plan.outputs.stdout, steps.plan.outputs.stderr) }}
           commenter_exitcode: ${{ steps.plan.outputs.exitcode }}
 ...
+```
+
+Single-workspace build, with large plan support:
+```yaml
+name: 'Terraform'
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TF_IN_AUTOMATION: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_version: 0.15.0
+[...]
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out workspace.plan 2>&1 | tee {{ github.workspace }}/terraform-plan.out
+
+      - name: Post Plan
+        if: always() && github.ref != 'refs/heads/master' && (steps.plan.outcome == 'success' || steps.plan.outcome == 'failure')
+        uses: Jimdo/terraform-pr-commenter@main
+        with:
+          commenter_type: plan
+          commenter_input_file: terraform-plan.out
+          commenter_exitcode: ${{ steps.plan.outputs.exitcode }}
+[...]
 ```
 
 "What's the crazy-looking `if:` doing there?" Good question! It's broken into 3 logic groups separated by `&&`, so all need to return `true` for the step to run:
