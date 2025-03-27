@@ -254,4 +254,11 @@ conventional commit format.
 
 ## Releasing a new version
 
-A new release is created every time a PR is merged to a main branch.
+Use the `release.sh` script to create a new release:
+
+1. Check the latest version number: `git tag`
+1. Create a new version number in the format `vX.Y.Z`
+1. Run the script: `./release.sh vX.Y.Z`
+
+The script will create a new tag, push it to GitHub, and create a new release
+with the tag as the title.
