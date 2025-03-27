@@ -11,7 +11,7 @@ jobs:
       contents: write
       id-token: write
       actions: read
-    runs-on: jimdo-runner-1core
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
