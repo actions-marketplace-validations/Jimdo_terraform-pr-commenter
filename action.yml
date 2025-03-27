@@ -9,8 +9,13 @@ inputs:
     description: 'The type of comment. Options: [fmt, init, plan]'
     required: true
   commenter_input:
-    description: 'The comment to post from a previous step output'
-    required: true
+    description: 'the comment to post from a previous step output'
+    required: false
+    default: ''
+  commenter_input_file:
+    description: 'the comment to post from a previous step output passed as file name (see README.md for more information)'
+    required: false
+    default: ''
   commenter_exitcode:
     description: 'The exit code from a previous step output'
     required: true
@@ -26,3 +31,4 @@ runs:
     - ${{ inputs.commenter_input }}
     - ${{ inputs.commenter_exitcode }}
     - ${{ inputs.commenter_comment }}
+    - ${{ inputs.commenter_input_file }}
