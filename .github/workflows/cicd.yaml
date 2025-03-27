@@ -2,8 +2,8 @@ name: cicd
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'main*'
 
 jobs:
   release:
@@ -11,7 +11,6 @@ jobs:
       contents: write
       id-token: write
       actions: read
-    if: github.ref == 'refs/heads/main'
     runs-on: jimdo-runner-1core
     steps:
       - uses: actions/checkout@v4
