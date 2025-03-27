@@ -242,6 +242,16 @@ In English: "Always run this step, but only on a pull request and only when the 
 
 Feel free to head over to the [Issues](https://github.com/robburger/terraform-pr-commenter/issues) tab to see if the issue you're having has already been reported. If not, [open a new one](https://github.com/robburger/terraform-pr-commenter/issues/new) and be sure to include as much relevant information as possible, including code-samples, and a description of what you expect to be happening.
 
+## Conventional Commits
+
+Use `make hooks` to install a pre-commit hook that ensures you are using the
+conventional commit format.
+
 ## License
 
 [MIT](LICENSE)
+
+
+## Releasing a new version
+
+A new release is created every time a PR is merged to a main branch.

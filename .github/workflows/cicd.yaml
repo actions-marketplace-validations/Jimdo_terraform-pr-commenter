@@ -1,0 +1,50 @@
+name: cicd
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+      id-token: write
+      actions: read
+    if: github.ref == 'refs/heads/main'
+    runs-on: jimdo-runner-1core
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          create_annotated_tag: true
+          custom_release_rules: "chore:patch:Chores"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Git config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "jimdo-cicd+github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate and update tag referencing last major version (E.g. v1 points to v1.0.1)
+        run: |
+          set -x
+          echo "New tag: $NEW_TAG"
+          major_tag=$(echo $NEW_TAG | sed -r 's/^(v[0-9]+).*$/\1/')
+          git tag -f -a -m "Major Version $major_tag" $major_tag
+          git push -f origin $major_tag
+        env:
+          NEW_TAG: ${{ steps.tag_version.outputs.new_tag }}
+
+      - name: Create github release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          generate_release_notes: yes
+          make_latest: true
