@@ -2,7 +2,7 @@ name: Lint Commit Messages
 on: [pull_request]
 jobs:
   commitlint:
-    runs-on: ubuntu-latest
+    runs-on: jimdo-runner-1core
     steps:
       - uses: actions/checkout@v4
         with:
