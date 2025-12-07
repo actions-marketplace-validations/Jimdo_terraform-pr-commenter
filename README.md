@@ -21,25 +21,26 @@ This action can only be run after a Terraform `fmt`, `init`, `plan` or `validate
 
 ```yaml
 - name: Comment PR with Terraform Plan
-  uses: Jimdo/terraform-pr-commenter@main
+  uses: Jimdo/terraform-pr-commenter@v1
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     TF_WORKSPACE: stage
   with:
     commenter_type: fmt/init/plan/validate # Choose one
-    commenter_input: ${{ format('{0}{1}', steps.step_id.outputs.stdout, steps.step_id.outputs.stderr) }}
+    commenter_input_file: terraform-plan.out # Write plan to {{ github.workspace }}/terraform-plan.out
     commenter_exitcode: ${{ steps.step_id.outputs.exitcode }}
     commenter_comment: "Cluster" # optional, e.g. to differentiate "Cluster" vs. "Kubernetes"
 ```
 
 ### Inputs
 
-| Name                 | Requirement | Description                                                       |
-| -------------------- | ----------- | ----------------------------------------------------------------- |
-| `commenter_type`     | _required_  | The type of comment. Options: [`fmt`, `init`, `plan`, `validate`] |
-| `commenter_input`    | _required_  | The comment to post from a previous step output.                  |
-| `commenter_exitcode` | _required_  | The exit code from a previous step output.                        |
-| `commenter_comment`  | _optional_  | An optional comment to add to the end of the headline.            |
+| Name                  | Requirement | Description                                                       |
+| --------------------- | ----------- | ----------------------------------------------------------------- |
+| `commenter_type`        | _required_  | The type of comment. Options: [`fmt`, `init`, `plan`, `validate`] |
+| `commenter_input`       | _optional_  | the comment to post from a previous step output.                  |
+| `commenter_input_file`  | _optional_  | the comment to post in form of a file name relative to {{ github.workspace }} |
+| `commenter_exitcode`    | _required_  | The exit code from a previous step output.                        |
+| `commenter_comment`     | _optional_  | An optional comment to add to the end of the headline.            |
 
 ### Environment Variables
 
@@ -64,7 +65,7 @@ jobs:
         uses: actions/checkout@v2
 ...
       - name: Post Plan
-        uses: Jimdo/terraform-pr-commenter@main
+        uses: Jimdo/terraform-pr-commenter@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPAND_SUMMARY_DETAILS: 'true' # Override global environment variable; expand details just for this step
@@ -113,7 +114,7 @@ jobs:
 
       - name: Post Format
         if: always() && github.ref != 'refs/heads/master' && (steps.fmt.outcome == 'success' || steps.fmt.outcome == 'failure')
-        uses: Jimdo/terraform-pr-commenter@main
+        uses: Jimdo/terraform-pr-commenter@v1
         with:
           commenter_type: fmt
           commenter_input: ${{ format('{0}{1}', steps.fmt.outputs.stdout, steps.fmt.outputs.stderr) }}
@@ -125,7 +126,7 @@ jobs:
 
       - name: Post Init
         if: always() && github.ref != 'refs/heads/master' && (steps.init.outcome == 'success' || steps.init.outcome == 'failure')
-        uses: Jimdo/terraform-pr-commenter@main
+        uses: Jimdo/terraform-pr-commenter@v1
         with:
           commenter_type: init
           commenter_input: ${{ format('{0}{1}', steps.init.outputs.stdout, steps.init.outputs.stderr) }}
@@ -137,7 +138,7 @@ jobs:
 
       - name: Post Validate
         if: always() && github.ref != 'refs/heads/master' && (steps.validate.outcome == 'success' || steps.validate.outcome == 'failure')
-        uses: Jimdo/terraform-pr-commenter@main
+        uses: Jimdo/terraform-pr-commenter@v1
         with:
           commenter_type: validate
           commenter_input: ${{ format('{0}{1}', steps.validate.outputs.stdout, steps.validate.outputs.stderr) }}
@@ -149,7 +150,7 @@ jobs:
 
       - name: Post Plan
         if: always() && github.ref != 'refs/heads/master' && (steps.plan.outcome == 'success' || steps.plan.outcome == 'failure')
-        uses: Jimdo/terraform-pr-commenter@main
+        uses: Jimdo/terraform-pr-commenter@v1
         with:
           commenter_type: plan
           commenter_input: ${{ format('{0}{1}', steps.plan.outputs.stdout, steps.plan.outputs.stderr) }}
@@ -192,7 +193,7 @@ jobs:
 
       - name: Post Init - ${{ matrix['workspace'] }}
         if: always() && github.ref != 'refs/heads/master' && (steps.init.outcome == 'success' || steps.init.outcome == 'failure')
-        uses: Jimdo/terraform-pr-commenter@main
+        uses: Jimdo/terraform-pr-commenter@v1
           with:
             commenter_type: init
             commenter_input: ${{ format('{0}{1}', steps.init.outputs.stdout, steps.init.outputs.stderr) }}
@@ -204,12 +205,53 @@ jobs:
 
       - name: Post Plan - ${{ matrix['workspace'] }}
         if: always() && github.ref != 'refs/heads/master' && (steps.plan.outcome == 'success' || steps.plan.outcome == 'failure')
-        uses: Jimdo/terraform-pr-commenter@main
+        uses: Jimdo/terraform-pr-commenter@v1
         with:
           commenter_type: plan
           commenter_input: ${{ format('{0}{1}', steps.plan.outputs.stdout, steps.plan.outputs.stderr) }}
           commenter_exitcode: ${{ steps.plan.outputs.exitcode }}
 ...
+```
+
+Single-workspace build, with large plan support:
+```yaml
+name: 'Terraform'
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TF_IN_AUTOMATION: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_version: 0.15.0
+[...]
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out workspace.plan 2>&1 | tee {{ github.workspace }}/terraform-plan.out
+
+      - name: Post Plan
+        if: always() && github.ref != 'refs/heads/master' && (steps.plan.outcome == 'success' || steps.plan.outcome == 'failure')
+        uses: Jimdo/terraform-pr-commenter@v1
+        with:
+          commenter_type: plan
+          commenter_input_file: terraform-plan.out
+          commenter_exitcode: ${{ steps.plan.outputs.exitcode }}
+[...]
 ```
 
 "What's the crazy-looking `if:` doing there?" Good question! It's broken into 3 logic groups separated by `&&`, so all need to return `true` for the step to run:
@@ -242,6 +284,23 @@ In English: "Always run this step, but only on a pull request and only when the 
 
 Feel free to head over to the [Issues](https://github.com/robburger/terraform-pr-commenter/issues) tab to see if the issue you're having has already been reported. If not, [open a new one](https://github.com/robburger/terraform-pr-commenter/issues/new) and be sure to include as much relevant information as possible, including code-samples, and a description of what you expect to be happening.
 
+## Conventional Commits
+
+Use `make hooks` to install a pre-commit hook that ensures you are using the
+conventional commit format.
+
 ## License
 
 [MIT](LICENSE)
+
+
+## Releasing a new version
+
+Use the `release.sh` script to create a new release:
+
+1. Check the latest version number: `git tag`
+1. Create a new version number in the format `vX.Y.Z`
+1. Run the script: `./release.sh vX.Y.Z`
+
+The script will create a new tag, push it to GitHub, and create a new release
+with the tag as the title.
