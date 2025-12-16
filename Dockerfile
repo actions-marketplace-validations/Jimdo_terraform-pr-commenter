@@ -1,4 +1,4 @@
-FROM hashicorp/terraform:1.14.1
+FROM hashicorp/terraform:1.14.2
 
 LABEL repository="https://github.com/robburger/terraform-pr-commenter" \
       homepage="https://github.com/robburger/terraform-pr-commenter" \
